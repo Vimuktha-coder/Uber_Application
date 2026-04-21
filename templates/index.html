@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Uber Clone - Ride or Drive{% endblock %}
+
+{% block content %}
+<!-- Hero Section (50/50 Split) -->
+<main style="display: flex; min-height: calc(100vh - 64px); background: transparent;">
+    <div style="flex: 1; padding: 64px 8%; display: flex; flex-direction: column; justify-content: center; max-width: 600px;">
+        <h1 style="font-size: 52px; font-weight: 700; line-height: 64px; letter-spacing: -2px; margin-bottom: 36px; color: white;">
+            Request a ride, hop in, and go.
+        </h1>
+        
+        <form action="/dashboard/" method="get" id="rideForm" style="width: 100%; max-width: 440px;">
+            <div style="position:relative; margin-bottom: 12px;">
+                <div style="position:absolute; left:16px; top:18px; width:8px; height:8px; background:white; border-radius:50%; z-index: 2;"></div>
+                <div style="position:absolute; left:19px; top:26px; width:2px; height:50px; background:rgba(255,255,255,0.5); z-index: 1;"></div>
+                <input type="text" name="pickup" id="pickup" placeholder="Enter location" class="form-control" data-autocomplete="true" style="width: 100%; height: 48px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); font-size: 16px; padding-left: 40px; border-radius: 8px; color:white;" autocomplete="off">
+            </div>
+            
+            <div style="position:relative; margin-bottom: 24px;">
+                <div style="position:absolute; left:16px; top:20px; width:8px; height:8px; border: 2px solid white; background: transparent; z-index: 2;"></div>
+                <input type="text" name="dropoff" id="dropoff" placeholder="Enter destination" class="form-control" data-autocomplete="true" style="width: 100%; height: 48px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); font-size: 16px; padding-left: 40px; border-radius: 8px; color:white;" autocomplete="off">
+            </div>
+            
+            <button type="submit" class="btn-search" style="padding: 14px 24px; display: inline-block; width: auto;">
+                See prices
+            </button>
+        </form>
+    </div>
+
+    <div style="flex: 1; position: relative; overflow: hidden; display: flex; align-items:center; justify-content: center; box-shadow:-8px 0 32px rgba(0,0,0,0.5);">
+        <img src="{% static 'hero.png' %}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;" alt="Uber Ride Illustration">
+    </div>
+</main>
+
+<!-- Info Section 1: Drive when you want -->
+<section style="padding: 64px 8%; background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.1);">
+    <div style="display: flex; gap: 48px; align-items: center; justify-content: space-between;">
+        <div style="flex: 1;">
+            <img src="https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_558,h_558/v1684855112/assets/96/4dd3d1-94e7-481e-b28c-08d59353b9e0/original/earner-illustra.png" alt="Drive with Uber" style="width: 100%; max-width: 500px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);" onerror="this.src='https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&q=80'">
+        </div>
+        <div style="flex: 1; max-width: 500px;">
+            <h2 style="font-size: 40px; font-weight: 700; margin-bottom: 24px; line-height: 1.2; letter-spacing: -1px; color: white;">Drive when you want, make what you need</h2>
+            <p style="font-size: 18px; color: rgba(255,255,255,0.8); margin-bottom: 32px; line-height: 1.5;">Make money on your schedule with deliveries or rides—or both. You can use your own car or choose a rental through Uber.</p>
+            <div>
+                <a href="/apply-to-drive/" class="btn-search" style="padding: 14px 24px; display: inline-block; width: auto; margin-right: 16px; text-decoration:none;">Get started</a>
+                <a href="/login/" style="color: white; font-weight: 500; text-decoration: underline;">Already have an account? Sign in</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Info Section 2: Business -->
+<section style="padding: 64px 8%; background: rgba(0,0,0,0.2); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.1);">
+    <div style="display: flex; gap: 48px; align-items: center; justify-content: space-between; flex-direction: row-reverse;">
+        <div style="flex: 1;">
+            <img src="https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_558,h_558/v1684887108/assets/76/baf1ea-385a-408c-846b-59211086196c/original/u4b-square.png" alt="Uber for Business" style="width: 100%; max-width: 500px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);" onerror="this.src='https://images.unsplash.com/photo-1558450130-1090333331b2?w=800&q=80'">
+        </div>
+        <div style="flex: 1; max-width: 500px;">
+            <h2 style="font-size: 40px; font-weight: 700; margin-bottom: 24px; line-height: 1.2; letter-spacing: -1px; color: white;">Have a car? Start earning on Rentals</h2>
+            <p style="font-size: 18px; color: rgba(255,255,255,0.8); margin-bottom: 32px; line-height: 1.5;">List your personal vehicle on the Uber Rentals marketplace. Set your own daily price and keep 100% of the profits when guests reserve your car for 1-7 day trips.</p>
+            <div>
+                <a href="/list-vehicle/" class="btn-search" style="padding: 14px 24px; display: inline-block; width: auto; text-decoration:none;">List your vehicle</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer style="background-color: black; color: white; padding: 64px 8% 32px 8%;">
+    <div style="margin-bottom: 48px;">
+        <h2 style="font-size: 24px; margin-bottom: 32px;">Uber</h2>
+        <a href="#" style="color: white; text-decoration: none; margin-bottom: 24px; display: block;">Visit Help Center</a>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 32px; margin-bottom: 64px;">
+        <div>
+            <h3 style="font-weight: 500; margin-bottom: 16px; font-size: 18px;">Company</h3>
+            <ul style="list-style: none; padding: 0; line-height: 2.2;">
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">About us</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Our offerings</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Newsroom</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Investors</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Blog</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Careers</a></li>
+            </ul>
+        </div>
+        <div>
+            <h3 style="font-weight: 500; margin-bottom: 16px; font-size: 18px;">Products</h3>
+            <ul style="list-style: none; padding: 0; line-height: 2.2;">
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Ride</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Drive</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Deliver</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Eat</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Uber for Business</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Uber Freight</a></li>
+            </ul>
+        </div>
+        <div>
+            <h3 style="font-weight: 500; margin-bottom: 16px; font-size: 18px;">Global citizenship</h3>
+            <ul style="list-style: none; padding: 0; line-height: 2.2;">
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Safety</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Diversity and Inclusion</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Sustainability</a></li>
+            </ul>
+        </div>
+        <div>
+            <h3 style="font-weight: 500; margin-bottom: 16px; font-size: 18px;">Travel</h3>
+            <ul style="list-style: none; padding: 0; line-height: 2.2;">
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Reserve</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Airports</a></li>
+                <li><a href="#" style="color: #A0A0A0; text-decoration: none;">Cities</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <div style="border-top: 1px solid #333; padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <span style="color: #A0A0A0; font-size: 14px;">© 2026 Uber Technologies Inc. Clone</span>
+        <div style="display: flex; gap: 24px; font-size: 14px;">
+            <a href="#" style="color: #A0A0A0; text-decoration: none;">Privacy</a>
+            <a href="#" style="color: #A0A0A0; text-decoration: none;">Accessibility</a>
+            <a href="#" style="color: #A0A0A0; text-decoration: none;">Terms</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+    document.getElementById('rideForm').addEventListener('submit', function(e){
+        {% if not request.user.is_authenticated %}
+        e.preventDefault();
+        alert("Please login first to check ride prices and book vehicles.");
+        window.location.href = "{% url 'login' %}";
+        {% else %}
+        const pickup = document.getElementById('pickup').value;
+        const dropoff = document.getElementById('dropoff').value;
+        if(!pickup && !dropoff){
+            e.preventDefault();
+            alert("Please enter a location first to see prices!");
+        }
+        {% endif %}
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Driver Portal | Uber Clone{% endblock %}
+
+{% block content %}
+<div class="app-container" style="display:flex; height:calc(100vh - 64px); width:100vw; overflow:hidden;">
+    <div class="sidebar-panel" style="width: 380px; min-width:380px; max-width: 100vw; background:#111; color:white; border-right:1px solid #333; display:flex; flex-direction:column; padding:20px;">
+        <h2 class="panel-title" style="color:white; font-size:24px; display:flex; align-items:center; gap:12px; margin-top:0;">
+            <div class="radar-ping"></div>
+            Driver Mode Active
+        </h2>
+        <p style="color:#aaa; font-size:14px; margin-bottom:24px;">Automatically scanning for nearby ride requests...</p>
+        
+        <div id="noRidesMsg" style="text-align:center; padding: 40px 10px; color:#666;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom:16px; opacity:0.5;"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+            <p>No new requests right now.</p>
+            <p style="font-size:12px;">Stay online to receive pings.</p>
+        </div>
+
+        <div id="rideQueue" style="display:flex; flex-direction:column; gap:16px; overflow-y:auto; flex:1; padding-right:8px;">
+            <!-- Rides injected via Javascript -->
+        </div>
+
+        <!-- Removed earnings block as requested -->
+    </div>
+    
+    <div class="map-container" id="map" style="flex:1; height:100%; filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);"> <!-- Slick simple dark mode map! -->
+        <!-- Leaflet Map renders here -->
+    </div>
+</div>
+
+<style>
+/* Radar Ping Animation */
+.radar-ping {
+    width: 14px;
+    height: 14px;
+    background: #05A357;
+    border-radius: 50%;
+    position: relative;
+}
+.radar-ping::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background: inherit;
+    border-radius: inherit;
+    animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+    75%, 100% {
+        transform: scale(2.5);
+        opacity: 0;
+    }
+}
+
+/* Custom Ride Card Styles */
+.ride-req-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+.ride-req-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 4px; height: 100%;
+    background: #05A357;
+}
+.ride-req-card:hover {
+    transform: translateY(-2px);
+    border-color: #444;
+}
+.addr-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+    align-items: flex-start;
+}
+.addr-icon {
+    margin-top: 2px;
+}
+.addr-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+}
+.btn-accept {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    background: white;
+    color: black;
+    border: none;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: background 0.2s;
+}
+.btn-accept:hover {
+    background: #eee;
+}
+
+.map-driver-pin {
+    width: 24px;
+    height: 24px;
+    background: #05A357;
+    border: 3px solid #111;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0,0,0,0.8);
+}
+</style>
+
+<script>
+    // 2. Poll Backend API for Available Rides
+    const usdRate = 83.5;
+    
+    async function pollRides() {
+        try {
+            let res = await fetch('/api/driver/available-rides/');
+            let data = await res.json();
+            
+            if(data.status !== 'success') return;
+            
+            let rides = data.rides;
+            let currentRidesHash = JSON.stringify(rides);
+            if (window.lastRidesHash === currentRidesHash) return; // Prevent erasing when driver is typing if no real change
+            window.lastRidesHash = currentRidesHash;
+            
+            if(rides.length === 0) {
+                document.getElementById('noRidesMsg').style.display = 'block';
+                document.getElementById('rideQueue').innerHTML = '';
+            } else {
+                document.getElementById('noRidesMsg').style.display = 'none';
+                let html = '';
+                
+                rides.forEach(ride => {
+                    const priceInr = parseFloat(ride.fare);
+                    const priceUsd = (priceInr / usdRate).toFixed(2);
+                    
+                    html += `
+                        <div class="ride-req-card" id="ridebox-${ride.type}-${ride.id}">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                                <span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px;">${ride.title} • #${ride.id}</span>
+                                <span style="font-size:18px; font-weight:700;">₹${priceInr}</span>
+                            </div>
+                            
+                            <div class="addr-row">
+                                <div class="addr-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="black"><circle cx="12" cy="12" r="10"/></svg></div>
+                                <div class="addr-text" style="color:white; font-weight:500;">${ride.pickup}</div>
+                            </div>
+                            ${ride.dropoff ? `
+                            <div style="margin-left:5px; border-left:2px solid #333; height:12px; margin-bottom:8px;"></div>
+                            <div class="addr-row">
+                                <div class="addr-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="#05A357"><rect x="4" y="4" width="16" height="16"/></svg></div>
+                                <div class="addr-text" style="color:#aaa;">${ride.dropoff}</div>
+                            </div>
+                            ` : ''}
+                            
+                            <div style="display:flex; gap:12px; font-size:13px; color:#888; margin-top:12px; border-top:1px solid #333; padding-top:12px;">
+                                <div style="display:flex; align-items:center; gap:4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${ride.passenger}</div>
+                                <div style="display:flex; align-items:center; gap:4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 5.0</div>
+                            </div>
+                            
+                            ${ride.status === 'requested' ? `
+                                <button class="btn-accept" onclick="acceptRide('${ride.type}', ${ride.id})">Accept Request</button>
+                            ` : ride.status === 'accepted' ? `
+                                <div style="margin-top:16px; background:#222; padding:16px; border-radius:8px; display:flex; gap:12px; align-items:center;">
+                                    <input type="text" id="otp-${ride.type}-${ride.id}" placeholder="PIN" maxlength="4" style="width:110px; background:#111; color:white; border:1px solid #444; padding:12px; border-radius:6px; font-weight:700; text-align:center; font-size:18px; letter-spacing:4px;">
+                                    <button onclick="verifyTripOtp('${ride.type}', ${ride.id})" style="flex:1; background:#05A357; color:white; border:none; padding:12px; border-radius:6px; font-weight:600; font-size:15px; cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='#048c4a'" onmouseout="this.style.background='#05A357'">Start Trip</button>
+                                </div>
+                                <button onclick="cancelTrip('${ride.type}', ${ride.id})" style="width:100%; margin-top:8px; padding:10px; border-radius:8px; background:transparent; color:#dc3545; border:1px solid #333; font-weight:600; font-size:14px; cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'">Cancel Trip</button>
+                            ` : `
+                                <div style="margin-top:16px;">
+                                    <div style="color:#05A357; font-weight:700; text-align:center; margin-bottom:8px;">TRIP IN PROGRESS</div>
+                                    <button onclick="completeTrip('${ride.type}', ${ride.id})" style="width:100%; padding:12px; border-radius:8px; background:#05A357; color:white; border:none; font-weight:600; font-size:15px; cursor:pointer; margin-bottom: 8px;">Finish Trip</button>
+                                    <button onclick="cancelTrip('${ride.type}', ${ride.id})" style="width:100%; padding:10px; border-radius:8px; background:transparent; color:#dc3545; border:1px solid #333; font-weight:600; font-size:14px; cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='#222'" onmouseout="this.style.background='transparent'">Cancel Trip</button>
+                                </div>
+                            `}
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('rideQueue').innerHTML = html;
+            }
+        } catch(e) {
+            console.error("Polling error:", e);
+        }
+    }
+    
+    async function completeTrip(tripType, tripId) {
+        try {
+            let res = await fetch(`/api/driver/complete-trip/`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}' 
+                },
+                body: JSON.stringify({ type: tripType, id: tripId })
+            });
+            let data = await res.json();
+            if(data.status === 'success') {
+                alert("Trip Completed! Great job.");
+                pollRides();
+            } else {
+                alert("Error completing trip: " + data.message);
+            }
+        } catch(e) {
+            alert("Network error.");
+        }
+    }
+
+    async function cancelTrip(tripType, tripId) {
+        if(!confirm("Are you sure you want to cancel this trip?")) return;
+        try {
+            let res = await fetch(`/api/driver/cancel-trip/`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}' 
+                },
+                body: JSON.stringify({ type: tripType, id: tripId })
+            });
+            let data = await res.json();
+            if(data.status === 'success') {
+                alert("Trip Cancelled.");
+                pollRides();
+            } else {
+                alert("Error cancelling trip: " + data.message);
+            }
+        } catch(e) {
+            alert("Network error.");
+        }
+    }
+    
+    // Poll immediately, then every 3 seconds
+    pollRides();
+    setInterval(pollRides, 3000);
+
+    // 3. Handle Ride Acceptance
+    async function acceptRide(tripType, tripId) {
+        try {
+            const btn = document.querySelector(`#ridebox-${tripType}-${tripId} .btn-accept`);
+            btn.innerHTML = 'Connecting...';
+            btn.disabled = true;
+            
+            let res = await fetch(`/api/driver/accept-trip/`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}' 
+                },
+                body: JSON.stringify({ type: tripType, id: tripId })
+            });
+            let data = await res.json();
+            
+            if(data.status === 'success') {
+                btn.innerHTML = 'Successfully Accepted!';
+                btn.style.background = '#05A357';
+                btn.style.color = '#fff';
+                setTimeout(() => {
+                    alert(`You have accepted ${tripType.toUpperCase()} #${tripId}! Go pick up the passenger.`);
+                    pollRides(); // Refresh list to instantly show OTP Input mode
+                }, 800);
+            } else {
+                alert("Error accepting trip: " + data.message);
+                btn.innerHTML = 'Accept Request';
+                btn.disabled = false;
+            }
+            
+        } catch(e) {
+            alert("Network error.");
+        }
+    }
+
+    async function verifyTripOtp(tripType, tripId) {
+        const otpInput = document.getElementById(`otp-${tripType}-${tripId}`);
+        const otp = otpInput.value.trim();
+        
+        if (otp.length !== 4) {
+            alert("Please enter the 4-digit PIN provided by the customer.");
+            return;
+        }
+
+        try {
+            let res = await fetch(`/api/verify-otp/`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    type: tripType,
+                    id: tripId,
+                    otp: otp
+                })
+            });
+            
+            let data = await res.json();
+            if (data.status === 'success') {
+                alert("Trip Started successfully!");
+                pollRides(); // Refresh to remove the box (as it is now in_progress)
+            } else {
+                alert("Invalid PIN: " + data.message);
+            }
+        } catch (e) {
+            console.error("Error verifying OTP", e);
+        }
+    }
+
+    // 1. Initialize Map Safely
+    try {
+        var map = L.map('map', {zoomControl: false}).setView([12.9716, 77.5946], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 20
+        }).addTo(map);
+        const driverIcon = L.divIcon({className: 'map-driver-pin', iconSize:[24,24]});
+        L.marker([12.9716, 77.5946], {icon: driverIcon}).addTo(map);
+        
+        // Fix Leaflet grey tiles bug on flex layouts
+        setTimeout(() => { map.invalidateSize(); }, 500);
+        setTimeout(() => { map.invalidateSize(); }, 1500);
+    } catch (err) {
+        console.error("Map failed to load:", err);
+    }
+</script>
+{% endblock %}

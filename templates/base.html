@@ -1,0 +1,234 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Uber Clone - Ride, Drive & More{% endblock %}</title>
+    <!-- Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+</head>
+<body>
+    <nav class="navbar-auth">
+        <div class="auth-left">
+            <a href="/" class="brand-text">Uber</a>
+            {% if request.user.role != 'driver' %}
+            <ul class="auth-tabs">
+                <a href="/dashboard/" class="auth-tab {% if request.path == '/dashboard/' %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                    Ride
+                </a>
+                <a href="/rentals/" class="auth-tab {% if request.path == '/rentals/' %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><rect x="3" y="10" width="18" height="8" rx="2" ry="2"/><path d="M12 10V6"/><path d="M8 6h8"/></svg>
+                    Rentals
+                </a>
+                <a href="/parcel/" class="auth-tab {% if request.path == '/parcel/' %}active{% endif %}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    Parcel
+                </a>
+            </ul>
+            {% endif %}
+        </div>
+        
+        <div class="auth-right">
+            {% if request.user.is_authenticated %}
+                <div style="position:relative;">
+                    <button class="icon-btn" onclick="toggleNotifications()" id="notifBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        Activity <span id="notifBadge" style="display:none; background:#ff0000; color:white; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:4px;">New</span>
+                    </button>
+                    
+                    <div id="notifDropdown" class="auth-box" style="display:none; position:absolute; top:40px; right:0; width:300px; padding:16px; z-index:100; box-shadow:0 8px 32px rgba(0,0,0,0.5); background:#1a1a1a; border:1px solid #333; border-radius:12px; color:white;">
+                        <div style="font-weight:600; margin-bottom:12px; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Recent Notifications</div>
+                        <div id="notifList" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+                            <div style="color:var(--text-secondary); font-size:12px; text-align:center;">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                    let notifsLoaded = false;
+                    async function toggleNotifications() {
+                        const dropdown = document.getElementById('notifDropdown');
+                        if(dropdown.style.display === 'none') {
+                            dropdown.style.display = 'block';
+                            if(!notifsLoaded) fetchNotifications();
+                            document.getElementById('notifBadge').style.display = 'none'; // hide badge on open
+                        } else {
+                            dropdown.style.display = 'none';
+                        }
+                    }
+                    
+                    async function fetchNotifications() {
+                        try {
+                            let res = await fetch('/notification_api/list/');
+                            let data = await res.json();
+                            let html = "";
+                            if(data.notifications.length === 0) {
+                                html = "<div style='color:var(--text-secondary); font-size:12px; text-align:center;'>No recent activity.</div>";
+                            } else {
+                                data.notifications.forEach(n => {
+                                    html += `
+                                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                                        <div style="font-size:13px; font-weight:600; margin-bottom:4px;">${n.title}</div>
+                                        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px;">${n.message}</div>
+                                        <div style="font-size:10px; color:#888;">${n.created_at}</div>
+                                    </div>`;
+                                });
+                            }
+                            document.getElementById('notifList').innerHTML = html;
+                            notifsLoaded = true;
+                        } catch(e) {
+                            document.getElementById('notifList').innerHTML = "<div style='color:red; font-size:12px;'>Failed to load.</div>";
+                        }
+                    }
+                    
+                    // Simple polling on load to check if any exist to show badge
+                    window.addEventListener('load', async () => {
+                        try {
+                            let res = await fetch('/notification_api/list/');
+                            let data = await res.json();
+                            if(data.notifications && data.notifications.length > 0 && !data.notifications[0].is_read) {
+                                document.getElementById('notifBadge').style.display = 'inline-block';
+                            }
+                        } catch(e) {}
+                    });
+                </script>
+                <a href="{% url 'logout' %}" style="text-decoration:none; color:white; font-weight:500; margin:0 12px;">Log out</a>
+                <div style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    {% if request.user.role == 'driver' %}
+                        <a href="/driver/" style="text-decoration:none; margin-right:12px; font-weight:600; padding:8px 16px; background:#f3f3f3; border-radius:20px; color:#111 !important;">Driver Portal</a>
+                    {% else %}
+                        <a href="/apply-to-drive/" style="text-decoration:none; margin-right:12px; font-weight:600; color:white;">Drive with Uber</a>
+                    {% endif %}
+                    
+                    <a href="/list-vehicle/" style="text-decoration:none; margin-right:12px; font-weight:600; color:white;">Host a Car</a>
+                    
+                    <strong style="margin-right:8px; margin-left:8px; color:white;">{{ request.user.username }}</strong>
+                    <button class="profile-btn" style="background:#222; border:none; border-radius:50%; padding:6px; margin-left:4px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </button>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" style="text-decoration:none; color:black; font-weight:500; padding:10px 16px;">Log in</a>
+                <a href="{% url 'signup' %}" style="text-decoration:none; background:black; color:white; padding:10px 16px; border-radius:20px; font-weight:500;">Sign up</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% block content %}
+    {% endblock %}
+
+    <footer style="background:var(--bg-color); border-top:1px solid var(--gray-mid); padding: 20px 24px; text-align:center;">
+        <p style="color:var(--text-secondary); font-size:13px; margin:0;">
+            &copy; 2026 Uber Technologies Clone | <a href="/apply-to-drive/" style="color:var(--text-secondary); text-decoration:underline;">Earn Money Driving</a>
+        </p>
+    </footer>
+
+    <style>
+        .autocomplete-dropdown {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 999999;
+            display: none;
+        }
+        .autocomplete-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            color: #111;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .autocomplete-item:hover {
+            background: #f8f8f8;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .auto-main { font-weight: 600; font-size: 15px; color: #000; display: block; margin-bottom: 2px; }
+        .auto-sub { font-size: 12px; color: #666; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let timeout = null;
+
+            document.querySelectorAll('input[data-autocomplete="true"]').forEach(input => {
+                // Create the dropdown element and append to body to completely bypass any overflow:hidden containers
+                const dropdown = document.createElement('div');
+                dropdown.className = 'autocomplete-dropdown';
+                document.body.appendChild(dropdown);
+
+                function syncPosition() {
+                    const rect = input.getBoundingClientRect();
+                    dropdown.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+                    dropdown.style.left = (rect.left + window.scrollX) + 'px';
+                    dropdown.style.width = rect.width + 'px';
+                }
+
+                input.addEventListener('input', (e) => {
+                    const query = e.target.value.trim();
+                    syncPosition();
+
+                    if (query.length < 3) {
+                        dropdown.style.display = 'none';
+                        return;
+                    }
+
+                    clearTimeout(timeout);
+                    timeout = setTimeout(async () => {
+                        try {
+                            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=5`);
+                            const data = await res.json();
+                            
+                            dropdown.innerHTML = '';
+                            if (data.length > 0) {
+                                dropdown.style.display = 'block';
+                                data.forEach(item => {
+                                    const parts = item.display_name.split(',');
+                                    const mainText = parts[0].trim();
+                                    const subText = parts.slice(1, Math.min(4, parts.length)).join(',').trim(); // Take next 3 parts to avoid chaotic long strings
+
+                                    const div = document.createElement('div');
+                                    div.className = 'autocomplete-item';
+                                    div.innerHTML = `<span class="auto-main">${mainText}</span><span class="auto-sub">${subText}</span>`;
+                                    
+                                    div.addEventListener('click', () => {
+                                        input.value = mainText + (subText ? ', ' + subText.split(',')[0] : '');
+                                        dropdown.style.display = 'none';
+                                    });
+                                    dropdown.appendChild(div);
+                                });
+                            } else {
+                                dropdown.style.display = 'none';
+                            }
+                        } catch (err) {
+                            console.error('Geocoding search error:', err);
+                        }
+                    }, 400); // 400ms debounce
+                });
+
+                // Re-sync on scroll or resize just in case
+                window.addEventListener('resize', () => { if(dropdown.style.display === 'block') syncPosition(); });
+
+                // Hide dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (e.target !== input && !dropdown.contains(e.target)) {
+                        dropdown.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

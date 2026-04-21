@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Parcel | Uber Clone{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    <div class="sidebar-panel">
+        <h2 class="panel-title">Send a Package</h2>
+        <p style="color:var(--text-secondary); margin-bottom: 24px; font-size: 14px;">Same-day delivery made easy. Enter details below to find a driver.</p>
+        
+        <!-- Booking Form Container -->
+        <div id="formContainer">
+            <form id="parcelForm" onsubmit="return handleParcelRequest(event)">
+                <div class="form-group">
+                    <div style="position:absolute; left:16px; top:20px; width:8px; height:8px; background:black; border-radius:50%; z-index: 2;"></div>
+                    <div style="position:absolute; left:19px; top:28px; width:2px; height:24px; background:var(--gray-mid); z-index: 1;"></div>
+                    <input type="text" class="form-control" id="pickupInput" placeholder="Pickup location" required data-autocomplete="true" autocomplete="off">
+                </div>
+                
+                <div class="form-group">
+                    <div style="position:absolute; left:16px; top:20px; width:8px; height:8px; background:#FF0000; z-index: 2;"></div>
+                    <input type="text" class="form-control" id="dropoffInput" placeholder="Recipient dropoff location" required data-autocomplete="true" autocomplete="off">
+                </div>
+                
+                <div class="form-group" style="margin-top: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; color:var(--text-secondary); margin-bottom:8px; display:block;">PACKAGE WEIGHT (KG)</label>
+                    <input type="number" step="0.1" max="999" class="form-control" id="weightInput" placeholder="e.g. 2.5" value="1.0" required>
+                </div>
+                
+                <button type="submit" class="btn-search" style="margin-top: 16px;">Calculate Route & Fare</button>
+            </form>
+        </div>
+        
+        <!-- Results Panel -->
+        <div id="resultsPanel" style="display:none; flex:1; flex-direction:column;">
+            <div class="results-list" style="margin-bottom: 24px;">
+                <div class="vehicle-card selected" style="cursor:default;">
+                    <div class="vehicle-desc">
+                        <div class="vehicle-icon">📦</div>
+                        <div class="vehicle-details">
+                            <h4>Uber Connect</h4>
+                            <p class="vehicle-meta">Package delivery</p>
+                        </div>
+                    </div>
+                    <div class="vehicle-price" id="parcelPrice">---</div>
+                </div>
+            </div>
+            <button class="btn-search" style="margin-top:auto;" id="confirmBtn" onclick="submitParcel()">Confirm & Request Driver</button>
+            <button style="margin-top:8px; background:none; border:none; text-decoration:underline; cursor:pointer;" onclick="goBackToSearch()">Edit Details</button>
+        </div>
+        
+        <!-- Payment Options Panel -->
+        <div id="paymentPanel" style="display:none; flex:1; flex-direction:column;">
+            <p style="color:var(--text-secondary); margin-bottom: 24px; font-size: 14px;">You will be safely redirected to Stripe to schedule your delivery.</p>
+            
+            <button class="btn-search" style="margin-top:auto;" id="payBtn" onclick="submitParcel()">Pay & Request Delivery</button>
+            <button style="margin-top:8px; background:none; border:none; text-decoration:underline; cursor:pointer;" onclick="goBackToSearch()">Go Back</button>
+        </div>
+        
+        <!-- Active Tracking UI: Searching -->
+        <div id="searchingDriverPanel" style="display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+            <div style="width:64px; height:64px; border-radius:50%; background:black; margin-bottom:24px; position:relative; display:flex; justify-content:center; align-items:center;">
+                <div style="width:100%; height:100%; position:absolute; border-radius:50%; background:rgba(0,0,0,0.1); animation:ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="position:relative; z-index:2;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <h2 style="font-size:24px; margin-bottom:8px;">Finding a driver...</h2>
+            <p style="color:var(--text-secondary); font-size:15px;">Broadcasting Delivery #<span id="searchingRef">...</span> to nearby drivers.</p>
+        </div>
+        
+        <!-- Active Tracking UI: En Route -->
+        <div id="enRoutePanel" style="display:none; flex:1; flex-direction:column;">
+            <div style="background:#f7f7f7; padding:16px; border-radius:12px; margin-bottom:24px; border:1px solid #eaeaea;">
+                <h2 style="font-size:28px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; color:#111;">
+                    <span id="arrivingEta">-- min</span>
+                    <span style="font-size:16px; background:white; padding:4px 12px; border-radius:16px; font-weight:700; border:2px solid black; color:#111;"><span id="licensePlateText">MH-12</span></span>
+                </h2>
+                <p style="color:#666; font-size:15px; margin-bottom:20px;">Distance: <span id="arrivingDist" style="font-weight:600;">-- km</span> to pickup</p>
+                
+                <div style="display:flex; align-items:center; gap:16px; border-top:1px solid #ddd; padding-top:16px;">
+                    <div style="width:48px; height:48px; background:#ccc; border-radius:50%; display:flex; justify-content:center; align-items:center; overflow:hidden;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div>
+                        <div style="font-weight:600; font-size:18px; margin-bottom:2px; color:#111;" id="driverNameText">Assigning...</div>
+                        <div style="color:#666; font-size:14px; text-transform:capitalize;" id="vehicleDescText">...</div>
+                    </div>
+                </div>
+
+                <div style="background:#fff3cd; border:1px solid #ffeeba; padding:12px; border-radius:8px; margin-top:16px; text-align:center;">
+                    <p style="color:#856404; font-size:13px; font-weight:600; margin-bottom:4px;">Give this PIN to your driver to start:</p>
+                    <h3 style="font-size:24px; font-weight:800; color:#856404; letter-spacing:4px; margin:0;" id="verificationOtpText">----</h3>
+                </div>
+            </div>
+            <p style="color:var(--text-secondary); margin-bottom:auto; font-size:14px; text-align:center;">Please prepare your package for pickup.</p>
+            <a href="/parcel/" class="btn-search" style="margin-top:auto; font-weight:600; text-align:center; background:#e2e2e2; color:black; text-decoration:none;">Cancel Delivery</a>
+        </div>
+    </div>
+    
+    <div class="map-container" id="map"></div>
+</div>
+
+<style>
+.map-pin {
+    width: 20px;
+    height: 20px;
+    background: black;
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+.map-dest-pin {
+    width: 20px;
+    height: 20px;
+    background: #FF0000;
+    border: 3px solid white;
+    box-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+</style>
+
+<script>
+    var map = L.map('map', {zoomControl: false}).setView([12.9716, 77.5946], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20
+    }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    
+    // Aesthetic UI: Populate map with random offline vehicles
+    const vehicleTypes = ['📦', '🚚', '🚚', '🛵', '🛵', '🏍️', '🏍️'];
+    var dummyCarsArray = [];
+    for(let i=0; i<18; i++) {
+        let lat = 12.9716 + (Math.random() - 0.5) * 0.08;
+        let lng = 77.5946 + (Math.random() - 0.5) * 0.08;
+        let iconHtml = `<div style="font-size:20px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5)); transform: rotate(${Math.random() * 360}deg);">${vehicleTypes[Math.floor(Math.random()*vehicleTypes.length)]}</div>`;
+        let icon = L.divIcon({className: 'dummy-car', html: iconHtml, iconSize:[24,24]});
+        let dummyMarker = L.marker([lat, lng], {icon: icon}).addTo(map);
+        dummyCarsArray.push(dummyMarker);
+    }
+    
+    var routeLayer = null;
+    var pin1 = null;
+    var pin2 = null;
+    
+    // Global coordinate storage
+    let currentPickupLatLng = null;
+    let currentDropoffLatLng = null;
+    async function geocode(query) {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=1`);
+            const data = await res.json();
+            if(data && data.length > 0) {
+                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function handleParcelRequest(e) {
+        e.preventDefault();
+        const pickupStr = document.getElementById('pickupInput').value || "Current Location";
+        const dropoffStr = document.getElementById('dropoffInput').value;
+        const weight = parseFloat(document.getElementById('weightInput').value);
+        
+        if(!dropoffStr) return alert("Destination is required!");
+        if(weight >= 1000) { alert("Maximum weight is 999kg!"); return; }
+        
+        let startLatlng = await geocode(pickupStr) || [12.9716 + (Math.random() - 0.5)*0.02, 77.5946 + (Math.random() - 0.5)*0.02];
+        let endLatlng = await geocode(dropoffStr) || [startLatlng[0] + (Math.random()*0.02) + 0.01, startLatlng[1] + (Math.random()*0.02) + 0.01];
+        
+        currentPickupLatLng = startLatlng;
+        currentDropoffLatLng = endLatlng;
+        
+        // Calculate realistic distance
+        const p1 = L.latLng(startLatlng[0], startLatlng[1]);
+        const p2 = L.latLng(endLatlng[0], endLatlng[1]);
+        const distanceKm = p1.distanceTo(p2) / 1000;
+        
+        let baseFare = 50 + (weight * 10) + (distanceKm * 5);
+        document.getElementById('parcelPrice').innerText = "₹" + baseFare.toFixed(2);
+        
+        document.getElementById('formContainer').style.display = 'none';
+        document.getElementById('resultsPanel').style.display = 'flex';
+        
+        if(routeLayer) map.removeLayer(routeLayer);
+        if(pin1) map.removeLayer(pin1);
+        if(pin2) map.removeLayer(pin2);
+        
+        const svgStart = `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#000" stroke="#fff" stroke-width="4" style="filter:drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"/></svg>`;
+        const svgEnd = `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2.5C11.306 2.5 7.5 6.306 7.5 11c0 6.643 8.5 18.5 8.5 18.5s8.5-11.857 8.5-18.5c0-4.694-3.806-8.5-8.5-8.5zm0 11.5a3 3 0 1 1 0-6 3 3 0 0 1 0 6z" fill="#E11D48" style="filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.3));"/></svg>`;
+        
+        const iconStart = L.divIcon({className: 'dummy-car', html: svgStart, iconSize:[24,24], iconAnchor:[12,12]});
+        const iconEnd = L.divIcon({className: 'dummy-car', html: svgEnd, iconSize:[32,32], iconAnchor:[16,32]});
+        
+        pin1 = L.marker(startLatlng, {icon: iconStart}).addTo(map);
+        pin2 = L.marker(endLatlng, {icon: iconEnd}).addTo(map);
+        routeLayer = L.polyline([startLatlng, endLatlng], {color: '#000', weight: 4, opacity: 0.8, dashArray: '10, 10'}).addTo(map);
+        map.fitBounds([startLatlng, endLatlng], {padding: [80, 80]});
+        
+        return false;
+    }
+    
+    function goBackToSearch() {
+        document.getElementById('resultsPanel').style.display = 'none';
+        document.getElementById('paymentPanel').style.display = 'none';
+        document.getElementById('formContainer').style.display = 'block';
+    }
+    
+    function showPaymentPanel() {
+        document.getElementById('resultsPanel').style.display = 'none';
+        document.getElementById('paymentPanel').style.display = 'flex';
+    }
+
+    async function submitParcel() {
+        const pickup = document.getElementById('pickupInput').value || "Current Location";
+        const dropoff = document.getElementById('dropoffInput').value || "Destination";
+        const weight = document.getElementById('weightInput').value || "1.0";
+        
+        let fareStr = document.getElementById('parcelPrice').innerText;
+        let fare = parseFloat(fareStr.replace('₹', '').replace(',', ''));
+        
+        const btn = document.getElementById('payBtn');
+        btn.disabled = true;
+        btn.innerText = "Connecting to Stripe...";
+        
+        try {
+            let res = await fetch('/parcel_api/book/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ pickup, dropoff, weight })
+            });
+            let data = await res.json();
+            
+            if (data.status !== 'success') {
+                throw new Error("Error booking parcel: " + data.message);
+            }
+            
+            let parcel_id = data.parcel_id;
+            
+            let checkoutResponse = await fetch('/payment/create-checkout-session/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: fare, parcel_id: parcel_id })
+            });
+            
+            let checkoutData = await checkoutResponse.json();
+            if (checkoutData.error || !checkoutData.url) {
+                throw new Error(checkoutData.error || "Cannot communicate with Stripe backend.");
+            }
+            
+            // Redirect to Stripe checkout
+            window.location.href = checkoutData.url;
+            
+        } catch(e) {
+            console.error(e);
+            alert("Error: " + e.message);
+            btn.disabled = false;
+            btn.innerText = "Pay & Request Delivery";
+        }
+    }
+    
+    let trackParcelId = null;
+    let trackInterval = null;
+    let animFrameId = null;
+    let pollAttempts = 0;
+    
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment_success') === 'true') {
+            document.getElementById('formContainer').style.display = 'none';
+            document.getElementById('resultsPanel').style.display = 'none';
+            document.getElementById('paymentPanel').style.display = 'none';
+            document.getElementById('searchingDriverPanel').style.display = 'flex';
+            
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({path: newUrl}, '', newUrl);
+            
+            trackParcelId = urlParams.get('parcel_id');
+            if (trackParcelId) {
+                document.getElementById('searchingRef').innerText = trackParcelId;
+                trackInterval = setInterval(pollParcelStatus, 3000);
+            }
+        }
+    };
+    
+    async function pollParcelStatus() {
+        pollAttempts++;
+        try {
+            let res = await fetch(`/parcel_api/parcel-status/${trackParcelId}/`);
+            let data = await res.json();
+            
+            if(data.status === 'success' && ['accepted', 'in_transit'].includes(data.parcel_status)) {
+                clearInterval(trackInterval);
+                document.getElementById('searchingDriverPanel').style.display = 'none';
+                document.getElementById('enRoutePanel').style.display = 'flex';
+                
+                if(data.driver_name) document.getElementById('driverNameText').innerText = data.driver_name;
+                if(data.driver_vehicle) document.getElementById('vehicleDescText').innerText = data.driver_vehicle;
+                if(data.driver_plate) document.getElementById('licensePlateText').innerText = data.driver_plate;
+                if(data.otp) document.getElementById('verificationOtpText').innerText = data.otp;
+                
+
+                startDriverTrackingSimulation();
+            }
+        } catch(error) {
+            console.error("Polling error:", error);
+        }
+    }
+    
+    let simulationStarted = false;
+    function startDriverTrackingSimulation() {
+        if(simulationStarted) return;
+        simulationStarted = true;
+        
+        if(routeLayer) map.removeLayer(routeLayer);
+        if(pin1) map.removeLayer(pin1);
+        if(pin2) map.removeLayer(pin2);
+        
+        dummyCarsArray.forEach(c => map.removeLayer(c));
+        dummyCarsArray = [];
+        
+        const pickupLatlng = currentPickupLatLng || [12.9716, 77.5946];
+        const destinationLatlng = currentDropoffLatLng || [pickupLatlng[0] + 0.04, pickupLatlng[1] + 0.04];
+        
+        const driverLatlng = [pickupLatlng[0] - 0.02, pickupLatlng[1] - 0.02];
+        
+        const svgStart = `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#000" stroke="#fff" stroke-width="4" style="filter:drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"/></svg>`;
+        const svgDest = `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16 2.5C11.306 2.5 7.5 6.306 7.5 11c0 6.643 8.5 18.5 8.5 18.5s8.5-11.857 8.5-18.5c0-4.694-3.806-8.5-8.5-8.5zm0 11.5a3 3 0 1 1 0-6 3 3 0 0 1 0 6z" fill="#E11D48" style="filter:drop-shadow(0px 4px 4px rgba(0,0,0,0.3));"/></svg>`;
+        
+        const iconStart = L.divIcon({className: 'dummy-car', html: svgStart, iconSize:[24,24], iconAnchor:[12,12]});
+        const iconDest = L.divIcon({className: 'dummy-car', html: svgDest, iconSize:[32,32], iconAnchor:[16,32]});
+        const iconCar = L.divIcon({className: 'dummy-car', html: '<div style="font-size:24px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5)); transform: scaleX(-1);">🚚</div>', iconSize:[24,24]});
+        
+        pin1 = L.marker(pickupLatlng, {icon: iconStart}).addTo(map);
+        let trackingPin = L.marker(driverLatlng, {icon: iconCar}).addTo(map);
+        
+        routeLayer = L.polyline([driverLatlng, pickupLatlng], {color: '#05A357', weight: 4, opacity: 0.8}).addTo(map);
+        map.fitBounds([driverLatlng, pickupLatlng], {padding: [80, 80]});
+        
+        // Multi-Phase Physics Variables
+        let currentPhase = 1; 
+        let progress = 0.0;
+        let speed = 0.003;
+        
+        let startPoint = driverLatlng;
+        let endPoint = pickupLatlng;
+        
+        function animateFrame() {
+            progress += speed;
+            if (progress > 1.0) progress = 1.0;
+            
+            let currentLat = startPoint[0] + (endPoint[0] - startPoint[0]) * progress;
+            let currentLng = startPoint[1] + (endPoint[1] - startPoint[1]) * progress;
+            trackingPin.setLatLng([currentLat, currentLng]);
+            
+            const p1 = L.latLng(currentLat, currentLng);
+            const p2 = L.latLng(endPoint[0], endPoint[1]);
+            const distanceKm = (p1.distanceTo(p2) / 1000);
+            
+            const etaMins = Math.ceil((distanceKm / 40) * 60);
+            
+            document.getElementById('arrivingDist').innerText = distanceKm.toFixed(1) + " km";
+            if (etaMins > 0) {
+                document.getElementById('arrivingEta').innerText = etaMins + " min";
+            } else {
+                document.getElementById('arrivingEta').innerText = (currentPhase === 1) ? "Arriving" : "Dropping Off";
+            }
+            
+            if (progress < 1.0) {
+                animFrameId = requestAnimationFrame(animateFrame);
+            } else {
+                if (currentPhase === 1) {
+                    document.getElementById('arrivingEta').innerText = "Arrived";
+                    document.getElementById('arrivingDist').innerText = "Loading package...";
+                    
+                    setTimeout(() => {
+                        currentPhase = 2;
+                        progress = 0.0;
+                        startPoint = pickupLatlng;
+                        endPoint = destinationLatlng;
+                        
+                        document.getElementById('arrivingDist').innerText = "In transit to delivery box";
+                        
+                        // Redraw Map for Phase 2
+                        map.removeLayer(routeLayer);
+                        routeLayer = L.polyline([pickupLatlng, destinationLatlng], {color: '#111', weight: 4, opacity: 0.9}).addTo(map);
+                        pin2 = L.marker(destinationLatlng, {icon: iconDest}).addTo(map);
+                        map.fitBounds([pickupLatlng, destinationLatlng], {padding: [80, 80]});
+                        
+                        animFrameId = requestAnimationFrame(animateFrame);
+                    }, 3000);
+                } else if (currentPhase === 2) {
+                    document.getElementById('arrivingEta').innerText = "Delivered";
+                    document.getElementById('arrivingDist').innerText = "Package dropped off!";
+                    
+                    setTimeout(() => {
+                        alert("Your package was successfully delivered! Tracking session ended.");
+                        window.location.href = '/parcel/';
+                    }, 1000);
+                }
+            }
+        }
+        animFrameId = requestAnimationFrame(animateFrame);
+    }
+</script>
+{% endblock %}

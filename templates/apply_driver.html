@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Drive with Uber{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:center; padding: 40px 20px; background:var(--bg-color); min-height: calc(100vh - 64px);">
+    <div style="background:#1a1a1a; padding: 40px; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border:1px solid #333;">
+        <h1 style="font-size:28px; line-height:36px; margin-bottom: 8px;">Earn money with Uber</h1>
+        
+        {% if not application or application.vehicle_make == '' %}
+            <p style="color:var(--text-secondary); margin-bottom: 32px; font-size:15px;">Tell us about the vehicle you wish to drive.</p>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:500; font-size:14px;">Vehicle Make</label>
+                    <input type="text" name="vehicle_make" class="form-control apply-input" placeholder="e.g. Toyota" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:500; font-size:14px;">Vehicle Model</label>
+                    <input type="text" name="vehicle_model" class="form-control apply-input" placeholder="e.g. Prius" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 32px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:500; font-size:14px;">License Plate</label>
+                    <input type="text" name="license_plate" class="form-control apply-input" placeholder="e.g. MH-12-AB-1234" required>
+                </div>
+                
+                <button type="submit" style="width:100%; padding:14px; background:white; color:black; border:none; border-radius:8px; font-weight:600; font-size:16px; cursor:pointer;">Submit Application</button>
+            </form>
+
+        {% elif application.status == 'pending' %}
+            <div style="text-align:center; padding: 20px 0;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#F5A623" stroke-width="2" style="margin-bottom:24px;">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <h2 style="font-size:22px; margin-bottom:12px;">Application under review</h2>
+                <p style="color:var(--text-secondary); line-height:1.6; font-size:15px;">
+                    Your application to drive a <strong>{{ application.vehicle_make }} {{ application.vehicle_model }}</strong> is currently pending manual approval from an administrator. Check back later!
+                </p>
+                <br>
+                <a href="/" style="color:white; font-weight:600; text-decoration:underline;">Return to Booking</a>
+            </div>
+
+        {% elif application.status == 'approved' %}
+            <div style="text-align:center; padding: 20px 0;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#05A357" stroke-width="2" style="margin-bottom:24px;">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <h2 style="font-size:22px; margin-bottom:12px;">You're approved!</h2>
+                <p style="color:var(--text-secondary); line-height:1.6; font-size:15px; margin-bottom:24px;">
+                    Your account has been officially upgraded to a Driver role. You can now accept incoming rides.
+                </p>
+                <a href="/driver/" style="display:inline-block; padding:14px 32px; background:white; color:black; border-radius:8px; font-weight:600; text-decoration:none;">Go to Driver Portal</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+/* Safe dark mode override isolated to the Apply view */
+h1, h2, label, p, strong {
+    color: #fff !important;
+}
+.apply-input {
+    background: #000 !important;
+    border: 1px solid #333 !important;
+    color: #fff !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+}
+.apply-input::placeholder {
+    color: #666 !important;
+}
+</style>
+{% endblock %}

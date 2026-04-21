@@ -1,0 +1,410 @@
+:root {
+  --uber-black: #000000;
+  --uber-white: #FFFFFF;
+  --bg-color: #0f0c29;
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-blur: blur(12px);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent-color: #E94560;
+  --accent-hover: #b82f48;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1A1A2E);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  color: var(--text-primary);
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Auth Navbar (Logged in) */
+.navbar-auth {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  height: 72px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-auth svg {
+  stroke: var(--text-primary) !important;
+}
+
+.auth-left {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.brand-text {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+  letter-spacing: -0.5px;
+  margin-right: 40px;
+  text-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
+}
+
+.auth-tabs {
+  display: flex;
+  height: 100%;
+  list-style: none;
+  gap: 1rem;
+}
+
+.auth-tab {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.95rem;
+  border-bottom: 2px solid transparent;
+  padding: 0 12px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.auth-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border-radius: 8px;
+  height: 48px;
+  margin-top: 12px;
+}
+
+.auth-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-color);
+  background: transparent;
+  height: 100%;
+  margin-top: 0;
+  border-radius: 0;
+}
+
+.auth-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.profile-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.profile-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.auth-right a {
+  color: var(--text-primary) !important;
+  transition: all 0.3s ease;
+}
+
+.auth-right a[href*="signup"] {
+  background: var(--accent-color) !important;
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+}
+
+.auth-right a[href*="signup"]:hover {
+  background: var(--accent-hover) !important;
+  transform: translateY(-2px);
+}
+
+/* Dashboard App Layout */
+.app-container {
+  display: flex;
+  padding: 32px 40px;
+  gap: 40px;
+  height: calc(100vh - 72px);
+}
+
+.sidebar-panel {
+  width: 400px;
+  min-width: 400px;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 24px;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* Custom Scrollbar for sidebar */
+.sidebar-panel::-webkit-scrollbar, .results-list::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-panel::-webkit-scrollbar-track, .results-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-panel::-webkit-scrollbar-thumb, .results-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.panel-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.promo-banner {
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  padding: 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.promo-banner svg {
+  stroke: var(--accent-color) !important;
+}
+
+.form-group {
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.form-control {
+  width: 100%;
+  padding: 16px 16px 16px 48px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.form-control:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-control {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='square' stroke-linejoin='arcs'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+}
+
+.dropdown-control option {
+  background-color: #1A1A2E; /* Opaque background for options since glass dropdowns don't style well natively */
+  color: white;
+}
+
+.btn-search {
+  width: 100%;
+  padding: 18px;
+  background: var(--accent-color);
+  color: var(--uber-white);
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+  transition: all 0.3s ease;
+}
+.btn-search:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6);
+}
+
+/* Enhanced Map Layout */
+.map-container {
+  flex: 1;
+  border-radius: 24px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  /* Optional glass overlay trick */
+}
+
+/* Add a slight vignette/glass ring inside the map container */
+.map-container::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 24px;
+  pointer-events: none;
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+
+/* Vehicle Results List */
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-bottom: 16px;
+  padding-right: 8px; /* For scrollbar spacing */
+}
+
+.vehicle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+}
+
+.vehicle-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.vehicle-card.selected {
+  border-color: var(--accent-color);
+  background: rgba(233, 69, 96, 0.2);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.vehicle-desc {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.vehicle-icon {
+  font-size: 40px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.vehicle-details h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vehicle-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.vehicle-price {
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: right;
+  color: var(--accent-color);
+}
+
+/* Fix for map text colors since leaflet inherits body color (white) */
+.leaflet-container {
+  color: var(--uber-black);
+}
+
+/* Specific styling overrides for authentication pages to center them nicely */
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 72px);
+}
+.auth-box {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 40px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: var(--glass-shadow);
+}

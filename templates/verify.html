@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Uber - Enter Code{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-box">
+        
+        <h2 style="font-size: 26px; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px; color: var(--text-primary);">Welcome back, {{ username }}.</h2>
+        
+        <p style="color: var(--text-secondary); font-size: 15px; margin-bottom: 24px; line-height: 1.4;">
+            Enter the 4-digit code sent via SMS at {{ phone }}.
+        </p>
+        
+        <a href="{% url 'signup' %}" style="color: var(--accent-color); font-size: 15px; text-decoration: none; font-weight: 600; display: block; margin-bottom: 32px;">
+            Changed your mobile number?
+        </a>
+        
+        {% if error %}
+        <div style="background: rgba(255,0,0,0.2); color: #ffeb3b; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="POST" action="{% url 'verify' %}" id="otpForm">
+            {% csrf_token %}
+            
+            <!-- Hidden inputs to submit the actual codes -->
+            <input type="hidden" name="sms_code" id="sms_code_full">
+            <input type="hidden" name="email_code" id="email_code_full" value="{{ request.session.email_otp }}"> <!-- Properly bypass by providing the session OTP -->
+
+            <!-- 4 Square Input Boxes -->
+            <div style="display: flex; gap: 12px; margin-bottom: 32px; justify-content: center;">
+                <input type="text" class="otp-box active" maxlength="1" oninput="moveToNext(this, 0)" onkeydown="checkBackspace(event, 0)" autofocus>
+                <input type="text" class="otp-box" maxlength="1" oninput="moveToNext(this, 1)" onkeydown="checkBackspace(event, 1)">
+                <input type="text" class="otp-box" maxlength="1" oninput="moveToNext(this, 2)" onkeydown="checkBackspace(event, 2)">
+                <input type="text" class="otp-box" maxlength="1" oninput="moveToNext(this, 3)" onkeydown="checkBackspace(event, 3)">
+            </div>
+            
+            <!-- Pill Buttons -->
+            <div style="margin-bottom: 16px;">
+                <button type="button" class="icon-btn" style="width: 100%; justify-content: center; padding: 12px;">Resend code via SMS</button>
+            </div>
+            <!-- Footer navigation -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
+                <a href="{% url 'signup' %}" style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-primary); text-decoration: none; transition: transform 0.2s;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                </a>
+                
+                <button type="button" onclick="submitOTP()" class="btn-search next-btn" style="width: auto; padding: 12px 24px; display: flex; align-items: center; margin-top: 0; opacity: 0.5; cursor: not-allowed; pointer-events: none;">
+                    Next 
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 8px;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .otp-box {
+        width: 56px;
+        height: 56px;
+        border: 1px solid var(--glass-border);
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        border-radius: 12px;
+        font-size: 24px;
+        font-weight: 700;
+        text-align: center;
+        outline: none;
+        transition: all 0.3s ease;
+    }
+    .otp-box:focus, .otp-box.active {
+        border-color: var(--accent-color);
+        background: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 0 0 4px rgba(233, 69, 96, 0.2);
+    }
+</style>
+
+<script>
+    const boxes = document.querySelectorAll('.otp-box');
+    const nextBtn = document.querySelector('.next-btn');
+
+    function moveToNext(input, index) {
+        if(input.value.length === 1) {
+            input.classList.remove('active');
+            if(index < boxes.length - 1) {
+                boxes[index + 1].focus();
+                boxes[index + 1].classList.add('active');
+            } else {
+                input.classList.add('active'); // keep active if last
+                validateFull();
+            }
+        }
+        validateFull();
+    }
+    
+    function checkBackspace(e, index) {
+        if(e.key === 'Backspace' && e.target.value === '') {
+            e.target.classList.remove('active');
+            if(index > 0) {
+                boxes[index - 1].focus();
+                boxes[index - 1].classList.add('active');
+            }
+        }
+    }
+    
+    // Allow clicking boxes to make them active
+    boxes.forEach(box => {
+        box.addEventListener('focus', () => {
+            boxes.forEach(b => b.classList.remove('active'));
+            box.classList.add('active');
+        });
+    });
+
+    function validateFull() {
+        let code = '';
+        boxes.forEach(b => code += b.value);
+        if(code.length === 4) {
+            nextBtn.style.opacity = '1';
+            nextBtn.style.cursor = 'pointer';
+            nextBtn.style.pointerEvents = 'auto';
+        } else {
+            nextBtn.style.opacity = '0.5';
+            nextBtn.style.cursor = 'not-allowed';
+            nextBtn.style.pointerEvents = 'none';
+        }
+    }
+    
+    function submitOTP() {
+        let code = '';
+        boxes.forEach(b => code += b.value);
+        if(code.length === 4) {
+            document.getElementById('sms_code_full').value = code;
+            document.getElementById('otpForm').submit();
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Rentals - Uber Clone{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    <div class="sidebar-panel">
+        <h2 class="panel-title" style="margin-bottom: 12px;">Rentals</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 24px; line-height: 1.4;">Keep a car and driver for multiple days. Request a ride, and keep it.</p>
+        
+        <div id="formContainer">
+            <h3 style="font-size: 18px; margin-bottom: 16px;">1. Trip Details</h3>
+            <form id="tripDetailsForm">
+
+                
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" style="position:absolute; left:16px; top:20px; z-index:2;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <select id="hoursInput" class="form-control dropdown-control" style="font-weight:500;" onchange="recalculateIfActive()">
+                        <option value="1">1 Day Package</option>
+                        <option value="3">3 Days Package</option>
+                        <option value="5">5 Days Package</option>
+                        <option value="7">7 Days Package</option>
+                    </select>
+                </div>
+            </form>
+
+            <h3 style="font-size: 18px; margin-bottom: 16px;">2. Select a Vehicle</h3>
+            <div id="vehicleGrid" style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; max-height:400px; padding-bottom:20px;">
+                <!-- Dynamically populated via fetch -->
+                <p style="color:#666;">Loading available vehicles...</p>
+            </div>
+            
+            <div style="margin-top: 16px; padding-top:16px; border-top:1px solid #ddd; text-align:center;">
+                <a href="/list-vehicle/" style="color:#000; font-weight:600; text-decoration:underline;">Got a car? List your vehicle here.</a>
+            </div>
+        </div>
+        
+        <!-- Results Panel -->
+        <div id="resultsPanel" style="display:none; flex-direction:column; height:100%;">
+            <h3 style="font-size: 24px; font-weight: 700; margin-bottom: 16px;">Rental Reservation</h3>
+            <div style="background: #f7f7f7; padding:16px; border-radius: 12px; margin-bottom: 16px; border:1px solid #eaeaea; display:flex; align-items:center; gap:16px;">
+                <div style="font-size:32px;">⏱️</div>
+                <div>
+                    <h4 style="font-weight:600; font-size:18px;" id="rentalTitle">...</h4>
+                    <p style="color:#666; font-size:14px;">Dedicated car and driver</p>
+                </div>
+                <div style="margin-left:auto; font-weight:700; font-size:20px;" id="rentalPrice">...</div>
+            </div>
+            
+            <button class="btn-search" style="margin-top:auto;" onclick="showPaymentPanel()">Confirm Rental</button>
+            <button style="margin-top:8px; background:none; border:none; text-decoration:underline; cursor:pointer;" onclick="goBackToSearch()">Cancel</button>
+        </div>
+        
+        <!-- Payment Panel -->
+        <div id="paymentPanel" style="display:none; flex:1; flex-direction:column;">
+            <p style="color:var(--text-secondary); margin-bottom: 24px; font-size: 14px;">You will be redirected to Stripe to finalize your reservation.</p>
+            <button class="btn-search" style="margin-top:auto;" id="payBtn" onclick="submitRental()">Pay via Stripe</button>
+            <button style="margin-top:8px; background:none; border:none; text-decoration:underline; cursor:pointer;" onclick="goBackToSearch()">Go Back</button>
+        </div>
+        
+        <!-- Tracking UI: Searching -->
+        <div id="searchingDriverPanel" style="display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+            <div style="width:64px; height:64px; border-radius:50%; background:black; margin-bottom:24px; position:relative; display:flex; justify-content:center; align-items:center;">
+                <div style="width:100%; height:100%; position:absolute; border-radius:50%; background:rgba(0,0,0,0.1); animation:ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="position:relative; z-index:2;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <h2 style="font-size:24px; margin-bottom:8px;">Confirming Reservation...</h2>
+            <p style="color:var(--text-secondary); font-size:15px;">Finalizing Rental ID #<span id="searchingRef">...</span></p>
+        </div>
+        
+        <!-- Tracking UI: Arriving -->
+        <div id="enRoutePanel" style="display:none; flex:1; flex-direction:column;">
+            <div style="background:#f7f7f7; padding:16px; border-radius:12px; margin-bottom:24px; border:1px solid #eaeaea;">
+                <h2 style="font-size:28px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; color:#111;">
+                    <span id="arrivingEta">-- min</span>
+                    <span style="font-size:16px; background:white; padding:4px 12px; border-radius:16px; font-weight:700; border:2px solid black; color:#111;"><span id="licensePlateText">...</span></span>
+                </h2>
+                <p style="color:#666; font-size:15px; margin-bottom:20px;">Distance: <span id="arrivingDist" style="font-weight:600;">-- km</span> to vehicle</p>
+                
+                <div style="display:flex; align-items:center; gap:16px; border-top:1px solid #ddd; padding-top:16px;">
+                    <div style="width:48px; height:48px; background:#ccc; border-radius:50%; display:flex; justify-content:center; align-items:center; overflow:hidden;">
+                        <!-- Host avatar representing the car owner -->
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div>
+                        <div style="font-weight:600; font-size:18px; margin-bottom:2px; color:#111;">Hosted by <span id="driverNameText">...</span></div>
+                        <div style="color:#666; font-size:14px; text-transform:capitalize;" id="vehicleDescText">...</div>
+                    </div>
+                </div>
+
+                <div style="background:#e8f4fd; border:1px solid #b8daff; padding:12px; border-radius:8px; margin-top:16px; text-align:center;">
+                    <p style="color:#004085; font-size:13px; font-weight:600; margin-bottom:4px;">Enter PIN to unlock your vehicle:</p>
+                    <h3 style="font-size:24px; font-weight:800; color:#004085; letter-spacing:4px; margin:0;" id="verificationOtpText">----</h3>
+                    <button class="btn-search" style="margin-top:12px; padding:10px;" onclick="unlockVehicle()" id="unlockBtn">Unlock Vehicle</button>
+                    <p id="unlockError" style="color:red; font-size:12px; margin-top:8px; display:none;"></p>
+                </div>
+            </div>
+            
+            <div id="rentalActiveTimer" style="display:none; flex-direction:column; align-items:center;">
+                <p style="color:#05A357; font-weight:700; font-size:16px; margin-bottom:4px;">RENTAL ACTIVE</p>
+                <div style="font-size:36px; font-weight:800; font-variant-numeric: tabular-nums;" id="countdownClock">00:00:00</div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <div class="map-container" id="map"></div>
+</div>
+
+<script>
+    var map = L.map('map', {zoomControl: false}).setView([12.9716, 77.5946], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20
+    }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    
+    // Add aesthetic offline cars
+    const vehicleTypes = ['🚗', '🚕', '🚙', '🏎️', '🚐'];
+    var dummyCarsArray = [];
+    for(let i=0; i<15; i++) {
+        let lat = 12.9716 + (Math.random() - 0.5) * 0.08;
+        let lng = 77.5946 + (Math.random() - 0.5) * 0.08;
+        let iconHtml = `<div style="font-size:24px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5)); transform: rotate(${Math.random() * 360}deg);">${vehicleTypes[Math.floor(Math.random()*vehicleTypes.length)]}</div>`;
+        let icon = L.divIcon({className: 'dummy-car', html: iconHtml, iconSize:[24,24]});
+        dummyCarsArray.push(L.marker([lat, lng], {icon: icon}).addTo(map));
+    }
+    
+    var routeLayer = null;
+    var pin1 = null;
+    let globalPickup = null;
+    let globalHours = 1;
+
+    async function geocode(query) {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=1`);
+            const data = await res.json();
+            if(data && data.length > 0) {
+                return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    var activeVehicleId = null;
+    var activeDailyRate = 0;
+
+    async function loadVehicles() {
+        try {
+            let res = await fetch('/api/get-vehicles/');
+            let data = await res.json();
+            const grid = document.getElementById('vehicleGrid');
+            grid.innerHTML = '';
+            
+            if (!data.vehicles || data.vehicles.length === 0) {
+                grid.innerHTML = '<p style="color:#666;">No vehicles currently available for rent in your area.</p>';
+                return;
+            }
+            
+            data.vehicles.forEach(v => {
+                let card = document.createElement('div');
+                card.style = "background:#fff; border:2px solid #eaeaea; border-radius:12px; padding:16px; cursor:pointer; transition:all 0.2s; display:flex; justify-content:space-between; align-items:center;";
+                card.onclick = () => selectVehicle(v.id, v.daily_price, v.vehicle_make + ' ' + v.vehicle_model, v.location_city);
+                
+                // Add hover visual
+                card.onmouseover = () => card.style.borderColor = "black";
+                card.onmouseout = () => card.style.borderColor = "#eaeaea";
+                
+                card.innerHTML = `
+                    <div>
+                        <div style="font-weight:700; font-size:18px; margin-bottom:4px;">${v.vehicle_make} ${v.vehicle_model}</div>
+                        <div style="color:#666; font-size:14px; margin-bottom:4px;">Host: ${v.host_name} • ${v.license_plate}</div>
+                        <div style="color:#222; font-size:13px; font-weight:600;">📍 Pickup: ${v.location_city}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; font-size:18px;">₹${v.daily_price}</div>
+                        <div style="color:#666; font-size:12px;">per day</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        } catch(e) {
+            console.error(e);
+        }
+    }
+    
+    // Auto-load catalog
+    loadVehicles();
+
+    function recalculateIfActive() {
+        if(activeVehicleId) {
+            globalHours = parseInt(document.getElementById('hoursInput').value);
+            let fare = activeDailyRate * globalHours;
+            document.getElementById('rentalPrice').innerText = "₹" + fare;
+            let dayText = globalHours == 1 ? "1 Day" : globalHours + " Days";
+            document.getElementById('rentalTitle').innerText = dayText + " Reservation";
+        }
+    }
+
+    let activeVehicleLocation = "Vehicle Location";
+
+    async function selectVehicle(vId, dailyRate, vehicleName, vLocation) {
+        activeVehicleLocation = vLocation || "Vehicle Location";
+
+        activeVehicleId = vId;
+        activeDailyRate = dailyRate;
+        
+        globalHours = parseInt(document.getElementById('hoursInput').value);
+        let startLatlng = await geocode(activeVehicleLocation) || [12.9716, 77.5946];
+        globalPickup = startLatlng;
+        
+        let fare = dailyRate * globalHours;
+        document.getElementById('rentalPrice').innerText = "₹" + fare;
+        let dayText = globalHours == 1 ? "1 Day" : globalHours + " Days";
+        document.getElementById('rentalTitle').innerText = dayText + " Reservation (" + vehicleName + ")";
+        
+        document.getElementById('formContainer').style.display = 'none';
+        document.getElementById('resultsPanel').style.display = 'flex';
+        
+        if(routeLayer) map.removeLayer(routeLayer);
+        if(pin1) map.removeLayer(pin1);
+        
+        const svgStart = `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#000" stroke="#fff" stroke-width="4" style="filter:drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"/></svg>`;
+        const iconStart = L.divIcon({className: 'dummy-car', html: svgStart, iconSize:[24,24], iconAnchor:[12,12]});
+        
+        pin1 = L.marker(startLatlng, {icon: iconStart}).addTo(map);
+        map.setView(startLatlng, 15);
+    }
+    
+    function goBackToSearch() {
+        document.getElementById('resultsPanel').style.display = 'none';
+        document.getElementById('paymentPanel').style.display = 'none';
+        document.getElementById('formContainer').style.display = 'block';
+    }
+    
+    function showPaymentPanel() {
+        document.getElementById('resultsPanel').style.display = 'none';
+        document.getElementById('paymentPanel').style.display = 'flex';
+    }
+
+    async function submitRental() {
+        const pickup = activeVehicleLocation;
+        const btn = document.getElementById('payBtn');
+        btn.disabled = true;
+        btn.innerText = "Connecting...";
+        
+        try {
+            let res = await fetch('/api/book-rental/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ pickup: pickup, hours: globalHours, vehicle_id: activeVehicleId })
+            });
+            let data = await res.json();
+            if (data.status !== 'success') throw new Error(data.message);
+            
+            let checkoutRes = await fetch('/payment/create-checkout-session/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: data.price, rental_id: data.rental_id })
+            });
+            
+            let checkoutData = await checkoutRes.json();
+            if (checkoutData.error) throw new Error(checkoutData.error);
+            window.location.href = checkoutData.url;
+            
+        } catch(e) {
+            alert("Error: " + e.message);
+            btn.disabled = false;
+            btn.innerText = "Pay via Stripe";
+        }
+    }
+    
+    let trackId = null;
+    let trackInterval = null;
+    let pollAttempts = 0;
+    
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment_success') === 'true') {
+            document.getElementById('formContainer').style.display = 'none';
+            document.getElementById('resultsPanel').style.display = 'none';
+            document.getElementById('paymentPanel').style.display = 'none';
+            document.getElementById('searchingDriverPanel').style.display = 'flex';
+            
+            window.history.replaceState({}, '', window.location.pathname);
+            
+            trackId = urlParams.get('rental_id');
+            if (trackId) {
+                document.getElementById('searchingRef').innerText = trackId;
+                pollRentalStatus();
+                trackInterval = setInterval(pollRentalStatus, 3000);
+            }
+        }
+    };
+    
+    async function pollRentalStatus() {
+        pollAttempts++;
+        try {
+            let res = await fetch(`/api/rental-status/${trackId}/`);
+            let data = await res.json();
+            if (data.status === 'success' && ['accepted', 'active'].includes(data.rental_status)) {
+                clearInterval(trackInterval);
+                document.getElementById('searchingDriverPanel').style.display = 'none';
+                document.getElementById('enRoutePanel').style.display = 'flex';
+                
+                if(data.driver_name) document.getElementById('driverNameText').innerText = data.driver_name;
+                if(data.driver_vehicle) document.getElementById('vehicleDescText').innerText = data.driver_vehicle;
+                if(data.driver_plate) document.getElementById('licensePlateText').innerText = data.driver_plate;
+                if(data.otp) document.getElementById('verificationOtpText').innerText = data.otp;
+                
+                startSimulator();
+            }
+        } catch(e) { console.error(e); }
+    }
+    
+    function startSimulator() {
+        dummyCarsArray.forEach(c => map.removeLayer(c));
+        const userLatlng = globalPickup || [12.9716, 77.5946];
+        const vehicleLatlng = [userLatlng[0] + 0.02, userLatlng[1] - 0.02];
+        
+        const svgStart = `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#000" stroke="#fff" stroke-width="4" style="filter:drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"/></svg>`;
+        const iconUser = L.divIcon({className: 'dummy-user', html: svgStart, iconSize:[24,24], iconAnchor:[12,12]});
+        const iconCar = L.divIcon({className: 'dummy-car', html: '<div style="font-size:32px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));">🚙</div>', iconSize:[32,32]});
+        
+        if(pin1) map.removeLayer(pin1);
+        let vehiclePin = L.marker(vehicleLatlng, {icon: iconCar}).addTo(map);
+        let trackingUserPin = L.marker(userLatlng, {icon: iconUser}).addTo(map);
+        
+        routeLayer = L.polyline([userLatlng, vehicleLatlng], {color: '#05A357', weight: 4, opacity: 0.8, dashArray: '8, 8'}).addTo(map);
+        map.fitBounds([userLatlng, vehicleLatlng], {padding: [80, 80]});
+        
+        let progress = 0.0;
+        let speed = 0.003;
+        
+        function animateFrame() {
+            progress += speed;
+            if (progress > 1.0) progress = 1.0;
+            
+            let currentLat = userLatlng[0] + (vehicleLatlng[0] - userLatlng[0]) * progress;
+            let currentLng = userLatlng[1] + (vehicleLatlng[1] - userLatlng[1]) * progress;
+            trackingUserPin.setLatLng([currentLat, currentLng]);
+            
+            const distanceKm = L.latLng(currentLat, currentLng).distanceTo(L.latLng(vehicleLatlng[0], vehicleLatlng[1])) / 1000;
+            const etaMins = Math.ceil((distanceKm / 5) * 60); // 5km/h walking speed
+            
+            document.getElementById('arrivingDist').innerText = distanceKm.toFixed(1) + " km";
+            document.getElementById('arrivingEta').innerText = (etaMins > 0) ? etaMins + " min walk" : "Arrived";
+            
+            if (progress < 1.0) {
+                requestAnimationFrame(animateFrame);
+            } else {
+                document.getElementById('arrivingEta').innerText = "Arrived";
+                document.getElementById('arrivingDist').innerText = "At Vehicle Location";
+                if(routeLayer) map.removeLayer(routeLayer);
+            }
+        }
+        requestAnimationFrame(animateFrame);
+    }
+    
+    async function unlockVehicle() {
+        const btn = document.getElementById('unlockBtn');
+        const err = document.getElementById('unlockError');
+        if(!btn) return;
+        btn.innerText = "Unlocking...";
+        btn.disabled = true;
+        
+        try {
+            let res = await fetch(`/api/auto-assign-rental/${trackId}/`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            let data = await res.json();
+            if(data.status === 'success' || data.status === 'noop') {
+                document.getElementById('enRoutePanel').children[0].style.display = 'none'; // hide the top panel
+                document.getElementById('rentalActiveTimer').style.display = 'flex';
+                
+                let totalSeconds = globalHours * 24 * 3600;
+                // Set initial text right away
+                let d = Math.floor(totalSeconds / (24 * 3600));
+                let h = Math.floor((totalSeconds % (24 * 3600)) / 3600).toString().padStart(2, '0');
+                let m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+                let s = (totalSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('countdownClock').innerText = d > 0 ? `${d}d ${h}:${m}:${s}` : `${h}:${m}:${s}`;
+                
+                setInterval(() => {
+                    totalSeconds--;
+                    let d = Math.floor(totalSeconds / (24 * 3600));
+                    let h = Math.floor((totalSeconds % (24 * 3600)) / 3600).toString().padStart(2, '0');
+                    let m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+                    let s = (totalSeconds % 60).toString().padStart(2, '0');
+                    
+                    if (d > 0) {
+                        document.getElementById('countdownClock').innerText = `${d}d ${h}:${m}:${s}`;
+                    } else {
+                        document.getElementById('countdownClock').innerText = `${h}:${m}:${s}`;
+                    }
+                }, 1000);
+            } else {
+                err.innerText = "Error unlocking vehicle.";
+                err.style.display = 'block';
+                btn.innerText = "Unlock Vehicle";
+                btn.disabled = false;
+            }
+        } catch(e) {
+            err.innerText = "Connection error.";
+            err.style.display = 'block';
+            btn.innerText = "Unlock Vehicle";
+            btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}
